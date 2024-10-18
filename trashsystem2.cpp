@@ -1,6 +1,7 @@
 #include <iostream>
 #include "trashsystem2.hpp"
 #include <unistd.h>
+#include <cstdio>
 
 /*
  *
@@ -11,6 +12,11 @@
  * in C++ i hope to avoid the bugs and code smell
  * that eventually cropped up in the last project.
  *
+ * Some of the structure is very much based on
+ * Version 1 of the Trashing System. A lot of the main
+ * function and usage of getopt will be very similar
+ * and based off the code from Version 1.
+ *
  * While i am optimistic at this point my pessimism
  * will probably prove me wrong because i will most
  * likely encounter other problems that will give
@@ -18,7 +24,86 @@
  *
  */
 
+extern const TS_FUNCTION_RESULT FUNCTION_FAILURE;
+extern const TS_FUNCTION_RESULT FUNCTION_SUCCESS;
 char *g_argv = nullptr;
+
+int handle_ynf (const bool y_used, const bool n_used, const bool f_used) {
+
+	int choice_mode_ynf = MODE_NORMAL;
+	if (n_used == true) { choice_mode_ynf = MODE_NO; }
+   	if (y_used == true) { choice_mode_ynf = MODE_YES; }
+	if (f_used == true) { choice_mode_ynf = MODE_FORCE; }
+	
+	return choice_mode_ynf;
+}
+
+
+int choice (const int mode) {
+
+    char choice;
+    char modechoice;
+    do {
+		if (mode == MODE_NORMAL) { std::cout << "[Y / N] ? " << std::ends; }
+		if (mode == MODE_YES) { std::cout << "[Y / n] ? " << std::ends; }
+		if (mode == MODE_NO) { std::cout << "[y / N] ? " << std::ends;; }
+		if (mode == MODE_FORCE) { return 0; }
+	
+		choice = std::getchar();
+		if (choice == '\n' && mode == MODE_YES) { modechoice = 'Y'; choice = modechoice; goto modeskip;}
+		if (choice == '\n' && mode == MODE_NO) { modechoice = 'N'; choice = modechoice; goto modeskip;}
+		if (choice == '\n' && mode == MODE_NORMAL) { continue; }
+
+		while ('\n' != std::getchar());
+
+    } while ( (choice != 'Y') && (choice != 'y') && (choice != 'N') && (choice != 'n') );
+
+    modeskip:
+    if ((choice == 'Y') || (choice == 'y')) {
+        return 0;
+    }
+
+    if ((choice == 'N') || (choice == 'n')) {
+        return 1;
+    }
+
+    return FUNCTION_FAILURE; // Should never happen
+}
+
+TS_FUNCTION_RESULT create_ts_dirs(initial_path_info &ipi) {
+
+	if(std::filesystem::exists(ipi.rget_ts())) {
+		DEBUG_STREAM( << ipi.rget_ts() << " exists." << std::endl);
+	} else {
+		if(std::filesystem::create_directory(ipi.rget_ts()) == false) {
+			return FUNCTION_FAILURE;
+		} else {
+			DEBUG_STREAM( << ipi.rget_ts() << " was created." << std::endl);
+		}
+	}
+
+	if(std::filesystem::exists(ipi.rget_log())) {
+		DEBUG_STREAM( << ipi.rget_log() << " exists." << std::endl);
+	} else {
+		if(std::filesystem::create_directory(ipi.rget_log()) == false) {
+			return FUNCTION_FAILURE;
+		} else {
+			DEBUG_STREAM( << ipi.rget_log() << " was created." << std::endl);
+		}
+	}
+
+	if(std::filesystem::exists(ipi.rget_trd())) {
+		DEBUG_STREAM( << ipi.rget_trd() << " exists." << std::endl);
+	} else {
+		if(std::filesystem::create_directory(ipi.rget_trd()) == false) {
+			return FUNCTION_FAILURE;
+		} else {
+			DEBUG_STREAM( << ipi.rget_trd() << " was created." << std::endl);
+		}
+	}
+	
+	return FUNCTION_SUCCESS;
+}
 
 inline void usage_out(std::ostream &out) {
 	
@@ -49,9 +134,7 @@ int main (int argc, char **argv) {
 	int h_mtx = 0;
 	bool y_used = false;
 	bool n_used = false;
-	bool v_used = false;
 	bool f_used = false;
-	bool t_used = false;
 	bool l_used = false;
 	bool L_used = false;
 	bool c_used = false;
@@ -59,7 +142,7 @@ int main (int argc, char **argv) {
 	bool R_used = false;
 	bool h_used = false;
 	int opt = 0;
-	while((opt = getopt(argc, argv, "ynvfatlLcCR:h")) != -1) {
+	while((opt = getopt(argc, argv, "ynfatlLcCR:h")) != -1) {
 
 		switch(opt) {
 		case 'y':
@@ -74,20 +157,10 @@ int main (int argc, char **argv) {
 			n_used = true;
 			
 			break;
-		case 'v':
-
-			v_used = true;
-			
-			break;
 		case 'f':
 
 			f_mtx = 1;
 			f_used = true;
-			
-			break;
-		case 't':
-
-			t_used = true;
 			
 			break;
 		case 'l':
@@ -129,11 +202,10 @@ int main (int argc, char **argv) {
 		}
 	}
 
-	DEBUG_STREAM(<< "Used options [ynvftlLcCRh]: "
-				 << y_used << n_used << v_used
-				 << f_used << t_used << l_used
-				 << L_used << c_used << C_used
-				 << R_used << h_used << std::endl);
+	DEBUG_STREAM(<< "Used options [ynflLcCRh]: "
+				 << y_used << n_used << f_used
+				 << l_used << L_used << c_used
+				 << C_used << R_used << h_used << std::endl);
 	if((R_mtx + C_mtx + c_mtx + L_mtx + l_mtx + h_mtx) > 1) {
 		usage_out(std::cerr);
 		return EXIT_FAILURE;
@@ -151,13 +223,66 @@ int main (int argc, char **argv) {
 
 	if(h_used == true) {
 		usage_out_long(std::cout);
+		DEBUG_STREAM( << "-h" << std::endl);
+		return EXIT_SUCCESS;
+	}
+	
+	int choice_mode = handle_ynf(y_used, n_used, f_used);
+	initial_path_info ipi;
+	if(ipi.is_fail()) {
+		DEBUG_STREAM( << "ipi.isfail():" << ipi.is_fail() << std::endl);
+		return EXIT_FAILURE;
+	}
+
+	DEBUG_STREAM( << "ipi: \n"
+				  << ipi.get_uh() << "\n"
+				  << ipi.get_uh_ws() << "\n"
+				  << ipi.get_ts() << "\n"
+				  << ipi.get_ts_ws() << "\n"
+				  << ipi.get_trd() << "\n"
+				  << ipi.get_trd_ws() << "\n"
+				  << ipi.get_log() << "\n"
+				  << ipi.get_log_ws() << std::endl);
+	
+	if(create_ts_dirs(ipi) == FUNCTION_FAILURE) {
+		std::cerr << g_argv << ": Error: trashsys directories could not be created." << std::endl;
+		DEBUG_STREAM( << "create_ts_dirs: FUNCTION_FAILURE" << std::endl);
+		return EXIT_FAILURE;
+	}
+
+	if(R_used == true) {
+		DEBUG_STREAM( << "-R" << std::endl);
 		return EXIT_SUCCESS;
 	}
 
-	if(y_used || n_used || v_used || f_used || t_used) {}
-	std::cout << "Smoketest" << std::endl;
-	std::cout << argc << std::endl;
-	std::cout << argv[0] << std::endl;
-	std::cout << BUF_SIZE_1MIB << std::endl;
+	if(c_used == true) {
+		DEBUG_STREAM( << "-c" << std::endl);
+		return EXIT_SUCCESS;
+	}
+
+	if(C_used == true) {
+		DEBUG_STREAM( << "-C" << std::endl);
+		choice(choice_mode);
+		return EXIT_SUCCESS;
+	}
+
+	if(l_used == true || L_used == true) {
+		if(l_used) {
+			DEBUG_STREAM( << "-l" << std::endl);
+		}
+
+		if(L_used) {
+			DEBUG_STREAM( << "-L" << std::endl);
+		}
+		
+		return EXIT_SUCCESS;
+	}
+
+	int index = 0;
+	for (index = optind ; index < argc ; index++) { // Actual loop that trashes files etc
+		std::filesystem::path file_to_trash = argv[index];
+		std::cout << file_to_trash << std::endl;
+	}
+	
 	return 0;
 }
