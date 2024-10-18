@@ -70,7 +70,28 @@ int choice (const int mode) {
     return FUNCTION_FAILURE; // Should never happen
 }
 
-TS_FUNCTION_RESULT create_ts_dirs(initial_path_info &ipi) {
+TS_FUNCTION_RESULT compare_unixtime (const time_t deleted_time, int const difference_in_days) {
+
+	time_t diff_converted;
+	time_t current_time;
+	time_t final;
+	diff_converted = (time_t)difference_in_days * 86400;
+	current_time = time(NULL);
+	if(current_time == -1) {
+		return FUNCTION_FAILURE;
+	}
+
+	final = current_time - deleted_time; 
+	if(final < diff_converted) {
+		DEBUG_STREAM(<< "final is not older than diff_converted\n" << std::endl);
+		return FUNCTION_FAILURE;
+	}
+	
+	DEBUG_STREAM(<< "final is older than diff_converted\n" << std::endl);
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT create_ts_dirs(const initial_path_info &ipi) {
 
 	if(std::filesystem::exists(ipi.rget_ts())) {
 		DEBUG_STREAM( << ipi.rget_ts() << " exists." << std::endl);
@@ -102,6 +123,18 @@ TS_FUNCTION_RESULT create_ts_dirs(initial_path_info &ipi) {
 		}
 	}
 	
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path) { // function that gets all information about a file
+
+	if(path.empty()) {}
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi) { // function that writes logs
+
+	if(ipi.is_fail()) {}
 	return FUNCTION_SUCCESS;
 }
 
@@ -142,7 +175,7 @@ int main (int argc, char **argv) {
 	bool R_used = false;
 	bool h_used = false;
 	int opt = 0;
-	while((opt = getopt(argc, argv, "ynfatlLcCR:h")) != -1) {
+	while((opt = getopt(argc, argv, "ynftlLcCR:h")) != -1) {
 
 		switch(opt) {
 		case 'y':
@@ -281,6 +314,7 @@ int main (int argc, char **argv) {
 	int index = 0;
 	for (index = optind ; index < argc ; index++) { // Actual loop that trashes files etc
 		std::filesystem::path file_to_trash = argv[index];
+
 		std::cout << file_to_trash << std::endl;
 	}
 	

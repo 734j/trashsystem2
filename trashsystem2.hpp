@@ -35,18 +35,28 @@ const TS_FUNCTION_RESULT FUNCTION_SUCCESS = 0;
 #include <string>
 #include <vector>
 #include <cstdlib>
+
+struct trashsys_log_info {
+	int64_t ts_log_id;
+	size_t ts_log_filesize;
+	time_t ts_log_trashtime;
+	std::filesystem::path ts_log_filename;
+	std::filesystem::path ts_log_originalpath;	
+	bool ts_is_dir;
+};
+
 class initial_path_info { // Initial useful strings to create before we do anything. Super useful when programming.
 public:
 	initial_path_info();
-	bool is_fail() { return ipi_fail; }
-	std::filesystem::path &rget_uh() { return ts_path_user_home; };
-	std::filesystem::path &rget_uh_ws() { return ts_path_user_home_withslash; };
-	std::filesystem::path &rget_ts() { return ts_path_trashsys; };
-	std::filesystem::path &rget_ts_ws() { return ts_path_trashsys_withslash; };
-	std::filesystem::path &rget_log() { return ts_path_log; };
-	std::filesystem::path &rget_log_ws() { return ts_path_log_withslash; };
-	std::filesystem::path &rget_trd() { return ts_path_trashed; };
-	std::filesystem::path &rget_trd_ws() { return ts_path_trashed_withslash; };
+	bool is_fail() const { return ipi_fail; }
+	const std::filesystem::path &rget_uh() const { return ts_path_user_home; };
+	const std::filesystem::path &rget_uh_ws() const { return ts_path_user_home_withslash; };
+	const std::filesystem::path &rget_ts() const { return ts_path_trashsys; };
+	const std::filesystem::path &rget_ts_ws() const { return ts_path_trashsys_withslash; };
+	const std::filesystem::path &rget_log() const { return ts_path_log; };
+	const std::filesystem::path &rget_log_ws() const { return ts_path_log_withslash; };
+	const std::filesystem::path &rget_trd() const { return ts_path_trashed; };
+	const std::filesystem::path &rget_trd_ws() const { return ts_path_trashed_withslash; };
 	std::filesystem::path get_uh() { return ts_path_user_home; };
 	std::filesystem::path get_uh_ws() { return ts_path_user_home_withslash; };
 	std::filesystem::path get_ts() { return ts_path_trashsys; };
