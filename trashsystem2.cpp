@@ -2,6 +2,7 @@
 #include "trashsystem2.hpp"
 #include <unistd.h>
 #include <cstdio>
+#include <cstdlib>
 
 /*
  *
@@ -126,12 +127,62 @@ TS_FUNCTION_RESULT create_ts_dirs(const initial_path_info &ipi) {
 	return FUNCTION_SUCCESS;
 }
 
-TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path) { // function that gets all information about a file
+std::vector<directory_entry> get_files_in_directory(const std::filesystem::path path) {
 
-	if(path.empty()) {}
-	return FUNCTION_SUCCESS;
+	std::vector<directory_entry> v_directory_entry;
+	for(auto &dir_entry : std::filesystem::directory_iterator{path}) {				
+		bool isother = false;
+		if(!dir_entry.is_directory() && !dir_entry.is_regular_file()) {
+			DEBUG_STREAM( << "determine_new_id: " << dir_entry.path() << " is other." << std::endl);
+			isother = true;
+		}
+		
+		directory_entry current(dir_entry.path(), dir_entry.is_directory(), dir_entry.is_regular_file(), isother);
+		v_directory_entry.push_back(current);
+	}
+	
+	return v_directory_entry;
 }
 
+int64_t determine_highest_id(const initial_path_info &ipi) {
+
+	int64_t highest_id = 0;
+	auto dirs = get_files_in_directory(ipi.rget_log());
+	for(auto &a : dirs) {
+		std::string path_str = a.rget_path().filename();
+		const char *path_cstr = path_str.c_str();
+		char *endptr = nullptr;
+		auto strtoll_result = std::strtoll(path_cstr, &endptr, 10);
+		if(path_cstr == endptr) {
+			DEBUG_STREAM( << "determine_highest_id: path_cstr == endptr" << std::endl);
+			continue;
+		}
+
+		if(*endptr != ':') {
+			DEBUG_STREAM( << "':' not found for file: " << path_cstr << std::endl);
+			continue;
+		}
+
+		if(strtoll_result > highest_id) {
+			highest_id = strtoll_result;
+			DEBUG_STREAM( << "ID: " << strtoll_result << ", is higher than highest_id." << std::endl);
+		}
+	}
+	
+	return highest_id;
+}
+
+/*
+TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
+								 std::vector<trashsys_log_info> &vtli,
+								 const initial_path_info &ipi) {
+
+	
+	trashsys_log_info tli(1,1,1,"/","/",1);
+	vtli.push_back(tli);
+	return FUNCTION_SUCCESS;
+}
+*/
 TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi) { // function that writes logs
 
 	if(ipi.is_fail()) {}
@@ -312,11 +363,12 @@ int main (int argc, char **argv) {
 	}
 
 	int index = 0;
+	std::vector<trashsys_log_info> vtli;
 	for (index = optind ; index < argc ; index++) { // Actual loop that trashes files etc
 		std::filesystem::path file_to_trash = argv[index];
-
-		std::cout << file_to_trash << std::endl;
+		//get_file_info(file_to_trash, vtli);
 	}
-	
+
+	determine_highest_id(ipi);
 	return 0;
 }
