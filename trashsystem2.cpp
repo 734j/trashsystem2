@@ -153,7 +153,7 @@ int64_t determine_highest_id(const initial_path_info &ipi) {
 		std::string path_str = a.rget_path().filename();
 		const char *path_cstr = path_str.c_str();
 		char *endptr = nullptr;
-		auto strtoll_result = std::strtoll(path_cstr, &endptr, 10);
+		auto strtoll_result = std::strtoll(path_cstr, &endptr, 10); // maybe implement fail case for strtoll
 		if(path_cstr == endptr) {
 			DEBUG_STREAM( << "determine_highest_id: path_cstr == endptr" << std::endl);
 			continue;
@@ -191,14 +191,32 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 		return FUNCTION_FAILURE;
 	}
 	
-	std::cout << path << std::endl;
+	//std::cout << path << std::endl;
 	auto id = determine_highest_id(ipi);
+	auto canon_path = std::filesystem::canonical(path);
 	auto filesize = std::filesystem::file_size(path);
-	auto trashtime = std::time(nullptr);
-	auto file_name = path.filename();	
-	trashsys_log_info tli(id,filesize,trashtime,file_name,path,1);
+	auto trashtime = std::time(nullptr); // maybe check if time fails?
+	auto file_name = path.filename();
+	trashsys_log_info tli(id,filesize,trashtime,file_name,canon_path,1);
 	vtli.push_back(tli);
 	return FUNCTION_SUCCESS;
+}
+
+std::uintmax_t get_directory_size(std::filesystem::path &dirpath) { // Does not check for file existence, check before using
+
+	std::vector<directory_entry> de_files_only;
+	std::vector<directory_entry> de_dirs_only;
+	for(auto &d : std::filesystem::directory_iterator(dirpath)) {
+		if(d.is_regular_file()) {
+			de_files_only.push_back(directory_entry(d.path(), false, true));
+		} else if(d.is_directory()) {
+			de_dirs_only.push_back(directory_entry(d.path(), true));
+		} else {
+			continue;
+		}
+	}
+	
+	return 0;
 }
 
 TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi) { // function that writes logs
@@ -382,10 +400,20 @@ int main (int argc, char **argv) {
 
 	int index = 0;
 	std::vector<trashsys_log_info> vtli;
-	for (index = optind ; index < argc ; index++) { // Actual loop that trashes files etc
+	for (index = optind ; index < argc ; index++) { // loop that gathers info about files
 		std::filesystem::path file_to_trash = argv[index];
-		get_file_info(file_to_trash, vtli, ipi);
+		if(get_file_info(file_to_trash, vtli, ipi) == FUNCTION_FAILURE) {
+			continue;
+		}
 	}
 
+	for(auto &a : vtli) {
+		std::cout << a.rget_logid() << std::endl;
+		std::cout << a.rget_logfsz() << std::endl;
+		std::cout << a.rget_logtt() << std::endl;
+		std::cout << a.rget_logfn() << std::endl;
+		std::cout << a.rget_logop() << std::endl;
+	}
+	
 	return 0;
 }

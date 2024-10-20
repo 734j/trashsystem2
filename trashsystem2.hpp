@@ -38,17 +38,17 @@ const TS_FUNCTION_RESULT FUNCTION_SUCCESS = 0;
 
 class directory_entry {
 public:
-	directory_entry(std::filesystem::path dep, bool isd, bool isr, bool iso):
-		de_path(dep), is_dir(isd), is_reg(isr), is_other(iso) {}
-	const bool &ris_reg() const { return is_reg; }
-	const bool &ris_dir() const { return is_dir; }
-	const bool &ris_other() const { return is_other; }
-	const std::filesystem::path &rget_path() const { return de_path; }
+	directory_entry(std::filesystem::path dep, bool isd = false, bool isr = false, bool iso = false):
+		_de_path(dep), _is_dir(isd), _is_reg(isr), _is_other(iso) {}
+	bool is_reg() const { return _is_reg; }
+	bool is_dir() const { return _is_dir; }
+	bool is_other() const { return _is_other; }
+	const std::filesystem::path &rget_path() const { return _de_path; }
 private:
-	std::filesystem::path de_path;
-    bool is_dir = false;
-	bool is_reg = false;
-	bool is_other = false;
+	std::filesystem::path _de_path;
+    bool _is_dir = false;
+	bool _is_reg = false;
+	bool _is_other = false;
 };
 
 class trashsys_log_info {
@@ -58,14 +58,14 @@ public:
 		ts_log_id(log_id), ts_log_filesize(log_filesize), ts_log_trashtime(log_trashtime),
 		ts_log_filename(log_filename), ts_log_originalpath(log_originalpath), ts_is_dir(is_dir) { }
 	const int64_t &rget_logid() const { return ts_log_id; }
-	const size_t &rget_logfsz() const { return ts_log_filesize; }
+	const std::uintmax_t &rget_logfsz() const { return ts_log_filesize; }
 	const time_t &rget_logtt() const { return ts_log_trashtime; }
 	const std::filesystem::path &rget_logfn() const { return ts_log_filename; }
 	const std::filesystem::path &rget_logop() const { return ts_log_originalpath; }
 	const bool &rget_isdir() const { return ts_is_dir; }
 private:
 	int64_t ts_log_id;
-	size_t ts_log_filesize;
+	std::uintmax_t ts_log_filesize;
 	time_t ts_log_trashtime;
 	std::filesystem::path ts_log_filename;
 	std::filesystem::path ts_log_originalpath;	
