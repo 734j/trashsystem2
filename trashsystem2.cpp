@@ -173,11 +173,35 @@ int64_t determine_highest_id(const initial_path_info &ipi) {
 	return highest_id;
 }
 
+std::uintmax_t get_directory_size(const std::filesystem::path &dirpath) { // Does not check for file existence, check before using
+
+	std::vector<directory_entry> de_files_only;
+	std::vector<directory_entry> de_dirs_only;
+	for(auto &d : std::filesystem::directory_iterator(dirpath)) {
+		if(d.is_regular_file()) {
+			de_files_only.push_back(directory_entry(d.path(), false, true));
+		} else if(d.is_directory()) {
+			de_dirs_only.push_back(directory_entry(d.path(), true));
+		} else {
+			continue;
+		}
+	}
+
+	std::uintmax_t final_size = 0;
+	for(auto &dfo : de_files_only) {
+		final_size += std::filesystem::file_size(dfo.rget_path());
+	}
+
+	for(auto &ddo : de_dirs_only) {
+		final_size += get_directory_size(ddo.rget_path());
+	}
+	
+	return final_size;
+}
 
 TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 								 std::vector<trashsys_log_info> &vtli,
 								 const initial_path_info &ipi) {
-
 
 	if(!std::filesystem::exists(path)) {
 		DEBUG_STREAM( << path << " does not exist" << std::endl);
@@ -191,10 +215,15 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 		return FUNCTION_FAILURE;
 	}
 	
-	//std::cout << path << std::endl;
 	auto id = determine_highest_id(ipi);
 	auto canon_path = std::filesystem::canonical(path);
-	auto filesize = std::filesystem::file_size(path);
+	decltype(get_directory_size(path)) filesize = 0;
+	if(std::filesystem::is_regular_file(path)) {
+		filesize = std::filesystem::file_size(path);
+	} else if (std::filesystem::is_directory(path)) {
+		filesize = get_directory_size(path);
+	}
+	
 	auto trashtime = std::time(nullptr); // maybe check if time fails?
 	auto file_name = path.filename();
 	trashsys_log_info tli(id,filesize,trashtime,file_name,canon_path,1);
@@ -202,26 +231,10 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 	return FUNCTION_SUCCESS;
 }
 
-std::uintmax_t get_directory_size(std::filesystem::path &dirpath) { // Does not check for file existence, check before using
 
-	std::vector<directory_entry> de_files_only;
-	std::vector<directory_entry> de_dirs_only;
-	for(auto &d : std::filesystem::directory_iterator(dirpath)) {
-		if(d.is_regular_file()) {
-			de_files_only.push_back(directory_entry(d.path(), false, true));
-		} else if(d.is_directory()) {
-			de_dirs_only.push_back(directory_entry(d.path(), true));
-		} else {
-			continue;
-		}
-	}
+TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, trashsys_log_info &tli) { // function that writes logs
+
 	
-	return 0;
-}
-
-TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi) { // function that writes logs
-
-	if(ipi.is_fail()) {}
 	return FUNCTION_SUCCESS;
 }
 
@@ -408,11 +421,15 @@ int main (int argc, char **argv) {
 	}
 
 	for(auto &a : vtli) {
-		std::cout << a.rget_logid() << std::endl;
-		std::cout << a.rget_logfsz() << std::endl;
-		std::cout << a.rget_logtt() << std::endl;
-		std::cout << a.rget_logfn() << std::endl;
-		std::cout << a.rget_logop() << std::endl;
+		if(a.rget_isdir()) {}
+	}
+
+	for(auto &a : vtli) {
+		DEBUG_STREAM( << a.rget_logid() << std::endl);
+		DEBUG_STREAM( << a.rget_logfsz() << std::endl);
+		DEBUG_STREAM( << a.rget_logtt() << std::endl);
+		DEBUG_STREAM( << a.rget_logfn() << std::endl);
+		DEBUG_STREAM( << a.rget_logop() << std::endl);
 	}
 	
 	return 0;
