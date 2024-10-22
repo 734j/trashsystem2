@@ -1,5 +1,7 @@
 #include <iostream>
 #include "trashsystem2.hpp"
+#include <filesystem>
+#include <fstream>
 #include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
@@ -147,7 +149,7 @@ std::vector<directory_entry> get_files_in_directory(const std::filesystem::path 
 
 int64_t determine_highest_id(const initial_path_info &ipi) {
 
-	int64_t highest_id = 0;
+	int64_t highest_id = 1;
 	auto dirs = get_files_in_directory(ipi.rget_log());
 	for(auto &a : dirs) {
 		std::string path_str = a.rget_path().filename();
@@ -218,23 +220,34 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 	auto id = determine_highest_id(ipi);
 	auto canon_path = std::filesystem::canonical(path);
 	decltype(get_directory_size(path)) filesize = 0;
+	decltype(std::filesystem::is_directory(path)) isdir = false;
 	if(std::filesystem::is_regular_file(path)) {
 		filesize = std::filesystem::file_size(path);
 	} else if (std::filesystem::is_directory(path)) {
+		isdir = true;
 		filesize = get_directory_size(path);
 	}
 	
 	auto trashtime = std::time(nullptr); // maybe check if time fails?
 	auto file_name = path.filename();
-	trashsys_log_info tli(id,filesize,trashtime,file_name,canon_path,1);
+	trashsys_log_info tli(id,filesize,trashtime,file_name,canon_path,isdir);
 	vtli.push_back(tli);
 	return FUNCTION_SUCCESS;
 }
 
+TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, const trashsys_log_info &tli) { // function that writes logs
 
-TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, trashsys_log_info &tli) { // function that writes logs
-
-	
+	std::string filename = tli.rget_logfn();
+	std::string id_and_filename = std::to_string(tli.rget_logid())+":"+filename;
+	std::string id_and_filename_log = id_and_filename+".log";
+	std::ofstream log_out(std::string(ipi.rget_log_ws())+id_and_filename_log);
+	log_out << tli.rget_logid() << "\n"
+			<< tli.rget_logfn() << "\n"
+			<< id_and_filename << "\n"
+			<< tli.rget_logfsz() << "\n"
+			<< tli.rget_logtt() << "\n"
+			<< tli.rget_logop() << "\n"
+			<< tli.rget_isdir() << "\n";
 	return FUNCTION_SUCCESS;
 }
 
@@ -421,6 +434,8 @@ int main (int argc, char **argv) {
 	}
 
 	for(auto &a : vtli) {
+		// file is trashed here, and log written here
+		write_log_entry(ipi, a);
 		if(a.rget_isdir()) {}
 	}
 
