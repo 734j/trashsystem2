@@ -300,12 +300,40 @@ TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
 	return FUNCTION_SUCCESS;
 }
 
+filesize_unit to_filesize_unit(std::uintmax_t bytes) {
+
+	double d_bytes = bytes;
+	int count = 0;
+	std::vector<int> unit = {1, 2, 3, 4};
+	while(d_bytes >= 1024) {
+		d_bytes = d_bytes / 1024;
+		count++;
+	}
+
+	filesize_unit size(d_bytes);
+	if(unit[count] == 1) { size.set_is_bytes(true); }
+	
+	if(unit[count] == 2) { size.set_is_kib(true); }
+	
+	if(unit[count] == 3) { size.set_is_mib(true); }
+	
+	if(unit[count] == 4) { size.set_is_gib(true); }
+	
+	return size;
+}
+
 TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 
 	for(auto &a : vtli) {
+		filesize_unit fu = to_filesize_unit(a.rget_logfsz());
+		std::string unit;
+		if(fu.is_bytes()) { unit = "B"; }
+		if(fu.is_kib()) { unit = "KiB"; }
+		if(fu.is_mib()) { unit = "MiB"; }
+		if(fu.is_gib()) { unit = "GiB"; }
 		std::cout << "ID: " << a.rget_logid() << "   "
 				  << std::string(a.rget_logfn()) << "   "
-				  << a.rget_logfsz() << "   " // temporary, will create function to return human readable filesize
+				  << fu.get_number() << " " << unit << "   " // temporary, will create function to return human readable filesize
 				  << "Trashed at: " << a.rget_logtt() << "   " // temporary, will create function to return human readable date
 				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
 	}

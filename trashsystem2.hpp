@@ -36,6 +36,28 @@ const TS_FUNCTION_RESULT FUNCTION_SUCCESS = 0;
 #include <vector>
 #include <cstdlib>
 
+class filesize_unit { // not dealing with this now. Ill figure it out later.
+public:
+	filesize_unit() = default;
+	filesize_unit(double number, bool bytes = false, bool kib = false, bool mib = false, bool gib = false):
+		_number(number), _is_bytes(bytes), _is_kib(kib), _is_mib(mib), _is_gib(gib) {}
+	double get_number() const { return _number; }
+	bool is_bytes() const { return _is_bytes; }
+	bool is_kib() const { return _is_kib; }
+	bool is_mib() const { return _is_mib; }
+	bool is_gib() const { return _is_gib; }
+	void set_is_bytes(bool a) { _is_bytes = a; }
+	void set_is_kib(bool a) { _is_kib = a; }
+	void set_is_mib(bool a) { _is_mib = a; }
+	void set_is_gib(bool a) { _is_gib = a; }
+private:
+	double _number = 0;
+	bool _is_bytes = false;
+	bool _is_kib = false;
+	bool _is_mib = false;
+	bool _is_gib = false;
+};
+
 class directory_entry {
 public:
 	directory_entry(std::filesystem::path dep, bool isd = false, bool isr = false, bool iso = false):
