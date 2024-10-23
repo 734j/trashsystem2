@@ -243,6 +243,10 @@ TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, const trashsys_
 	std::string id_and_filename = std::to_string(tli.rget_logid())+":"+filename;
 	std::string id_and_filename_log = id_and_filename+".log";
 	std::ofstream log_out(std::string(ipi.rget_log_ws())+id_and_filename_log);
+	if(!log_out) {
+		return FUNCTION_FAILURE;
+	}
+	
 	log_out << tli.rget_logid() << " "
 			<< std::string(tli.rget_logfn()) << " "
 			<< id_and_filename << " "
@@ -384,6 +388,14 @@ TS_FUNCTION_RESULT long_list_trashed(const std::vector<trashsys_log_info> &vtli)
 				  << a.rget_isdir() << std::endl;
 	}
 	
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT put_in_trash(const initial_path_info &ipi, const trashsys_log_info &tli) {
+
+	std::string id_and_filename = std::to_string(tli.rget_logid())+":"+std::string(tli.rget_logfn());
+	std::string prepend_path = std::string(ipi.rget_trd_ws())+id_and_filename;
+	std::filesystem::rename(tli.rget_logop(), prepend_path);
 	return FUNCTION_SUCCESS;
 }
 
@@ -578,12 +590,11 @@ int main (int argc, char **argv) {
 			continue;
 		}
 
-		write_log_entry(ipi, tli);
-		DEBUG_STREAM( << tli.rget_logid() << std::endl);
-		DEBUG_STREAM( << tli.rget_logfsz() << std::endl);
-		DEBUG_STREAM( << tli.rget_logtt() << std::endl);
-		DEBUG_STREAM( << tli.rget_logfn() << std::endl);
-		DEBUG_STREAM( << tli.rget_logop() << std::endl);
+		if(write_log_entry(ipi, tli)) {
+			return EXIT_FAILURE;
+		}
+
+		put_in_trash(ipi, tli);
 	}
 	
 	return 0;
