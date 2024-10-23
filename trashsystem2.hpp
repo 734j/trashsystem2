@@ -53,6 +53,7 @@ private:
 
 class trashsys_log_info {
 public:
+	trashsys_log_info() = default;
 	trashsys_log_info(int64_t log_id, size_t log_filesize, time_t log_trashtime,
 					  std::filesystem::path log_filename, std::filesystem::path log_originalpath, bool is_dir):
 		ts_log_id(log_id), ts_log_filesize(log_filesize), ts_log_trashtime(log_trashtime),

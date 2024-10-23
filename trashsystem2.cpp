@@ -2,6 +2,7 @@
 #include "trashsystem2.hpp"
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
@@ -149,13 +150,14 @@ std::vector<directory_entry> get_files_in_directory(const std::filesystem::path 
 
 int64_t determine_highest_id(const initial_path_info &ipi) {
 
-	int64_t highest_id = 1;
-	auto dirs = get_files_in_directory(ipi.rget_log());
+	int64_t highest_id = 0;
+	auto dirs = get_files_in_directory(ipi.rget_log());	
 	for(auto &a : dirs) {
 		std::string path_str = a.rget_path().filename();
 		const char *path_cstr = path_str.c_str();
 		char *endptr = nullptr;
 		auto strtoll_result = std::strtoll(path_cstr, &endptr, 10); // maybe implement fail case for strtoll
+		DEBUG_STREAM( << "strtoll_result: " << strtoll_result << std::endl);
 		if(path_cstr == endptr) {
 			DEBUG_STREAM( << "determine_highest_id: path_cstr == endptr" << std::endl);
 			continue;
@@ -202,7 +204,7 @@ std::uintmax_t get_directory_size(const std::filesystem::path &dirpath) { // Doe
 }
 
 TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
-								 std::vector<trashsys_log_info> &vtli,
+								 trashsys_log_info &tli,
 								 const initial_path_info &ipi) {
 
 	if(!std::filesystem::exists(path)) {
@@ -217,7 +219,7 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 		return FUNCTION_FAILURE;
 	}
 	
-	auto id = determine_highest_id(ipi);
+	auto id = determine_highest_id(ipi);	
 	auto canon_path = std::filesystem::canonical(path);
 	decltype(get_directory_size(path)) filesize = 0;
 	decltype(std::filesystem::is_directory(path)) isdir = false;
@@ -230,8 +232,8 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 	
 	auto trashtime = std::time(nullptr); // maybe check if time fails?
 	auto file_name = path.filename();
-	trashsys_log_info tli(id,filesize,trashtime,file_name,canon_path,isdir);
-	vtli.push_back(tli);
+	trashsys_log_info _tli(id+1,filesize,trashtime,file_name,canon_path,isdir);
+	tli = _tli;
 	return FUNCTION_SUCCESS;
 }
 
@@ -248,6 +250,46 @@ TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, const trashsys_
 			<< tli.rget_logtt() << "\n"
 			<< tli.rget_logop() << "\n"
 			<< tli.rget_isdir() << "\n";
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
+										  std::vector<trashsys_log_info> &vtli) {
+
+	auto files_v = get_files_in_directory(ipi.rget_log());
+	for(auto &a : files_v) {
+		std::ifstream file_ifs (a.rget_path());
+		if(!file_ifs) {
+			DEBUG_STREAM( << "get_file_info_from_log: cannot open file: '" << a.rget_path() << "'\n");
+			continue;
+		}
+
+		int64_t id;
+		std::uintmax_t filesize;
+		time_t trashtime;
+		std::string log_filename;
+		std::string log_originalpath;
+		bool is_dir;
+		std::string line;
+		while(std::getline(file_ifs, line)) {
+			std::istringstream to_tli(line);
+			if(to_tli >> id >> filesize >> trashtime >> log_filename >> log_originalpath >> is_dir) {
+				trashsys_log_info tli(id, filesize, trashtime, log_filename, log_originalpath, is_dir);
+				vtli.push_back(tli);
+				DEBUG_STREAM( << "get_file_info_from_log: push_back successful: '" << a.rget_path() << "' pushed back.\n");
+			} else {
+				DEBUG_STREAM( << "get_file_info_from_log: logfile: '" << a.rget_path() << "' is incomplete\n");
+				continue;
+			}
+		}		
+	}
+	
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT list_trashed(const initial_path_info &ipi, trashsys_log_info &tli) {
+
+	
 	return FUNCTION_SUCCESS;
 }
 
@@ -389,7 +431,6 @@ int main (int argc, char **argv) {
 				  << ipi.get_trd_ws() << "\n"
 				  << ipi.get_log() << "\n"
 				  << ipi.get_log_ws() << std::endl);
-	
 	if(create_ts_dirs(ipi) == FUNCTION_FAILURE) {
 		std::cerr << g_argv << ": Error: trashsys directories could not be created." << std::endl;
 		DEBUG_STREAM( << "create_ts_dirs: FUNCTION_FAILURE" << std::endl);
@@ -425,26 +466,19 @@ int main (int argc, char **argv) {
 	}
 
 	int index = 0;
-	std::vector<trashsys_log_info> vtli;
 	for (index = optind ; index < argc ; index++) { // loop that gathers info about files
 		std::filesystem::path file_to_trash = argv[index];
-		if(get_file_info(file_to_trash, vtli, ipi) == FUNCTION_FAILURE) {
+		trashsys_log_info tli;
+		if(get_file_info(file_to_trash, tli, ipi) == FUNCTION_FAILURE) {
 			continue;
 		}
-	}
 
-	for(auto &a : vtli) {
-		// file is trashed here, and log written here
-		write_log_entry(ipi, a);
-		if(a.rget_isdir()) {}
-	}
-
-	for(auto &a : vtli) {
-		DEBUG_STREAM( << a.rget_logid() << std::endl);
-		DEBUG_STREAM( << a.rget_logfsz() << std::endl);
-		DEBUG_STREAM( << a.rget_logtt() << std::endl);
-		DEBUG_STREAM( << a.rget_logfn() << std::endl);
-		DEBUG_STREAM( << a.rget_logop() << std::endl);
+		write_log_entry(ipi, tli);
+		DEBUG_STREAM( << tli.rget_logid() << std::endl);
+		DEBUG_STREAM( << tli.rget_logfsz() << std::endl);
+		DEBUG_STREAM( << tli.rget_logtt() << std::endl);
+		DEBUG_STREAM( << tli.rget_logfn() << std::endl);
+		DEBUG_STREAM( << tli.rget_logop() << std::endl);
 	}
 	
 	return 0;
