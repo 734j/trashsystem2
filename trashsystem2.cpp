@@ -243,19 +243,29 @@ TS_FUNCTION_RESULT write_log_entry(const initial_path_info &ipi, const trashsys_
 	std::string id_and_filename = std::to_string(tli.rget_logid())+":"+filename;
 	std::string id_and_filename_log = id_and_filename+".log";
 	std::ofstream log_out(std::string(ipi.rget_log_ws())+id_and_filename_log);
-	log_out << tli.rget_logid() << "\n"
-			<< tli.rget_logfn() << "\n"
-			<< id_and_filename << "\n"
-			<< tli.rget_logfsz() << "\n"
-			<< tli.rget_logtt() << "\n"
-			<< tli.rget_logop() << "\n"
-			<< tli.rget_isdir() << "\n";
+	log_out << tli.rget_logid() << " "
+			<< std::string(tli.rget_logfn()) << " "
+			<< id_and_filename << " "
+			<< tli.rget_logfsz() << " "
+			<< tli.rget_logtt() << " "
+			<< std::string(tli.rget_logop()) << " "
+			<< tli.rget_isdir() << " ";
 	return FUNCTION_SUCCESS;
 }
 
 TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
 										  std::vector<trashsys_log_info> &vtli) {
 
+	/*
+	  LOG FILE FORMAT:
+	  1. ID (example 92)
+	  2. FILENAME (example this_is_a_file.txt)
+	  3. ID + FILENAME (example 92:this_is_a_file.txt) (not used in trashsys_log_info class, read but discarded)
+	  4. FILESIZE (in bytes)
+	  5. Time of trashing (unix epoch time. Example: 1729671387)
+	  6. ORIGINAL PATH (includes filename: /home/johndoe/this/is/the/full/path/to/where/the/file/was/deleted/this_is_a_file.txt)
+	  7. IS DIR? (simple boolean true or false)
+	 */
 	auto files_v = get_files_in_directory(ipi.rget_log());
 	for(auto &a : files_v) {
 		std::ifstream file_ifs (a.rget_path());
@@ -268,17 +278,20 @@ TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
 		std::uintmax_t filesize;
 		time_t trashtime;
 		std::string log_filename;
+		std::string log_id_and_filename;
 		std::string log_originalpath;
 		bool is_dir;
 		std::string line;
 		while(std::getline(file_ifs, line)) {
 			std::istringstream to_tli(line);
-			if(to_tli >> id >> filesize >> trashtime >> log_filename >> log_originalpath >> is_dir) {
+			if(to_tli >> id >> log_filename >> log_id_and_filename/* <--- Not used!!! */ >>
+			   filesize >> trashtime >> log_originalpath >> is_dir) {
 				trashsys_log_info tli(id, filesize, trashtime, log_filename, log_originalpath, is_dir);
 				vtli.push_back(tli);
-				DEBUG_STREAM( << "get_file_info_from_log: push_back successful: '" << a.rget_path() << "' pushed back.\n");
+				DEBUG_STREAM( << "get_file_info_from_log: push_back successful: '" << std::string(a.rget_path()) << "' date pushed back to vtli.\n");
 			} else {
-				DEBUG_STREAM( << "get_file_info_from_log: logfile: '" << a.rget_path() << "' is incomplete\n");
+				DEBUG_STREAM( << "get_file_info_from_log: logfile: '" << a.rget_path()
+							  << "' is incomplete. push_back not successful, continued.\n");				
 				continue;
 			}
 		}		
@@ -287,8 +300,28 @@ TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
 	return FUNCTION_SUCCESS;
 }
 
-TS_FUNCTION_RESULT list_trashed(const initial_path_info &ipi, trashsys_log_info &tli) {
+TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 
+	for(auto &a : vtli) {
+		std::cout << "ID: " << a.rget_logid() << "   "
+				  << std::string(a.rget_logfn()) << "   "
+				  << a.rget_logfsz() << "   " // temporary, will create function to return human readable filesize
+				  << "Trashed at: " << a.rget_logtt() << "   " // temporary, will create function to return human readable date
+				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
+	}
+	
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT long_list_trashed(const std::vector<trashsys_log_info> &vtli) {
+
+	for(auto &a : vtli) {
+		std::cout << "ID: " << a.rget_logid() << "   "
+				  << std::string(a.rget_logfn()) << "   "
+				  << a.rget_logfsz() << "   " // temporary, will create function to return human readable filesize
+				  << "Trashed at: " << a.rget_logtt() << "   " // temporary, will create function to return human readable date
+				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
+	}
 	
 	return FUNCTION_SUCCESS;
 }
@@ -454,12 +487,23 @@ int main (int argc, char **argv) {
 	}
 
 	if(l_used == true || L_used == true) {
+		std::vector<trashsys_log_info> vtli;
+		if(get_file_info_from_log(ipi, vtli) == FUNCTION_FAILURE) { // actually impossible case but covering it now either way
+			return EXIT_FAILURE;
+		}
+		
 		if(l_used) {
 			DEBUG_STREAM( << "-l" << std::endl);
+			if(list_trashed(vtli) == FUNCTION_FAILURE) {
+				return EXIT_FAILURE;
+			}
 		}
 
 		if(L_used) {
 			DEBUG_STREAM( << "-L" << std::endl);
+			if(long_list_trashed(vtli) == FUNCTION_FAILURE) {
+				return EXIT_FAILURE;
+			}
 		}
 		
 		return EXIT_SUCCESS;
