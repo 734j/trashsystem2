@@ -322,19 +322,39 @@ filesize_unit to_filesize_unit(std::uintmax_t bytes) {
 	return size;
 }
 
+TS_FUNCTION_RESULT readable_time(time_t epochtime, std::string &time) {
+
+	struct tm *tmp = NULL;
+	char *pretty_time = (char*)malloc(sizeof(char) * 512);
+	tmp = localtime(&epochtime);
+	if(strftime(pretty_time, 512, "%F", tmp) == 0) {
+		free(pretty_time);
+		return FUNCTION_FAILURE;
+	}
+
+	time = pretty_time;
+	free(pretty_time);
+	return FUNCTION_SUCCESS;
+}
+
 TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 
 	for(auto &a : vtli) {
 		filesize_unit fu = to_filesize_unit(a.rget_logfsz());
 		std::string unit;
+		std::string pretty_time;
+		if(readable_time(a.rget_logtt(), pretty_time) == FUNCTION_FAILURE) {
+			return FUNCTION_FAILURE;
+		}
+		
 		if(fu.is_bytes()) { unit = "B"; }
 		if(fu.is_kib()) { unit = "KiB"; }
 		if(fu.is_mib()) { unit = "MiB"; }
 		if(fu.is_gib()) { unit = "GiB"; }
 		std::cout << "ID: " << a.rget_logid() << "   "
 				  << std::string(a.rget_logfn()) << "   "
-				  << fu.get_number() << " " << unit << "   " // temporary, will create function to return human readable filesize
-				  << "Trashed at: " << a.rget_logtt() << "   " // temporary, will create function to return human readable date
+				  << fu.get_number() << " " << unit << "   "
+				  << "Trashed at: " << pretty_time << "   "
 				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
 	}
 	
@@ -344,11 +364,24 @@ TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 TS_FUNCTION_RESULT long_list_trashed(const std::vector<trashsys_log_info> &vtli) {
 
 	for(auto &a : vtli) {
+		filesize_unit fu = to_filesize_unit(a.rget_logfsz());
+		std::string unit;
+		std::string pretty_time;
+		if(readable_time(a.rget_logtt(), pretty_time) == FUNCTION_FAILURE) {
+			return FUNCTION_FAILURE;
+		}
+		
+		if(fu.is_bytes()) { unit = "B"; }
+		if(fu.is_kib()) { unit = "KiB"; }
+		if(fu.is_mib()) { unit = "MiB"; }
+		if(fu.is_gib()) { unit = "GiB"; }
 		std::cout << "ID: " << a.rget_logid() << "   "
 				  << std::string(a.rget_logfn()) << "   "
-				  << a.rget_logfsz() << "   " // temporary, will create function to return human readable filesize
-				  << "Trashed at: " << a.rget_logtt() << "   " // temporary, will create function to return human readable date
-				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
+				  << fu.get_number() << " " << unit << "   "
+				  << a.rget_logfsz() << " B" << "   "
+				  << "Trashed at: " << pretty_time << "   "
+				  << a.rget_logtt() << "   "
+				  << a.rget_isdir() << std::endl;
 	}
 	
 	return FUNCTION_SUCCESS;
