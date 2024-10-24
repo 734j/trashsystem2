@@ -60,17 +60,20 @@ private:
 
 class directory_entry {
 public:
-	directory_entry(std::filesystem::path dep, bool isd = false, bool isr = false, bool iso = false):
-		_de_path(dep), _is_dir(isd), _is_reg(isr), _is_other(iso) {}
+	directory_entry(std::filesystem::path dep, bool isd = false, bool isr = false, bool iso = false, TS_FUNCTION_RESULT isf = FUNCTION_SUCCESS):
+		_de_path(dep), _is_dir(isd), _is_reg(isr), _is_other(iso), _function_result(isf) {}
 	bool is_reg() const { return _is_reg; }
 	bool is_dir() const { return _is_dir; }
 	bool is_other() const { return _is_other; }
+	TS_FUNCTION_RESULT get_function_result () const { return _function_result; }
 	const std::filesystem::path &rget_path() const { return _de_path; }
+	void set_fail() { _function_result = FUNCTION_FAILURE; }
 private:
 	std::filesystem::path _de_path;
     bool _is_dir = false;
 	bool _is_reg = false;
 	bool _is_other = false;
+	TS_FUNCTION_RESULT _function_result = FUNCTION_SUCCESS;
 };
 
 class trashsys_log_info {

@@ -428,9 +428,38 @@ TS_FUNCTION_RESULT r_argument_validation(std::string argument) {
 	return FUNCTION_FAILURE;
 }
 
-TS_FUNCTION_RESULT restore_file(const initial_path_info &ipi, TS_FUNCTION_RESULT id) {
+directory_entry find_by_id(const initial_path_info &ipi, TS_FUNCTION_RESULT id) {
 
-	if(id || ipi.is_fail()) {}
+	directory_entry foundfile("");
+	auto vdirentry = get_files_in_directory(ipi.rget_log());
+	for(auto &a : vdirentry) {
+		if(a.is_dir() || a.is_other()) {
+			DEBUG_STREAM( << "restore_file: Non-regular file found in log. Skipping." << std::endl);
+			continue;
+		}
+
+		int64_t number = 0;
+		std::ifstream ifs(a.rget_path());
+		ifs >> number;
+		if(ifs.fail()) {
+			DEBUG_STREAM( << "restore_file: Incorrect file format found in a log file. Skipping." << std::endl);
+			continue;
+		}
+
+		std::cout << number << std::endl;
+	    if(id == number) {
+			return foundfile;
+		}
+	}
+
+	DEBUG_STREAM( << "restore_file: ID not found" << std::endl);
+	foundfile.set_fail();
+	return foundfile;
+}
+
+TS_FUNCTION_RESULT restore_file(directory_entry de) {
+
+	if(de.is_dir()) {}
 	return FUNCTION_SUCCESS;
 }
 
@@ -583,11 +612,21 @@ int main (int argc, char **argv) {
 	if(R_used == true) {
 		auto argnumber = r_argument_validation(r_arg);
 		if(argnumber == FUNCTION_FAILURE) {
-			std::cerr << "Invalid argument. Please provide a valid ID." << std::endl;
+			std::cerr << g_argv << ": Error: Invalid argument. Please provide a valid ID." << std::endl;
 			return EXIT_FAILURE;
 		}
 		
-		restore_file(ipi, argnumber);
+		auto de = find_by_id(ipi, argnumber);
+		if(de.get_function_result() == FUNCTION_FAILURE) {
+			std::cerr << g_argv << ": Error: File with ID '" << argnumber << "' was not found." << std::endl;
+			return EXIT_FAILURE;
+		}
+
+		if(restore_file(de) == FUNCTION_FAILURE) {
+			std::cerr << g_argv << ": Error: " << std::endl;
+			return EXIT_FAILURE;
+		}
+		
 		DEBUG_STREAM( << "-R" << std::endl);
 		return EXIT_SUCCESS;
 	}
