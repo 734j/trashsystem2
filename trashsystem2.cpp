@@ -350,6 +350,11 @@ TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 		if(readable_time(a.rget_logtt(), pretty_time) == FUNCTION_FAILURE) {
 			return FUNCTION_FAILURE;
 		}
+
+		std::string file_or_directory = "File";
+		if(a.rget_isdir()) {
+			file_or_directory = "Directory";
+		}
 		
 		if(fu.is_bytes()) { unit = "B"; }
 		if(fu.is_kib()) { unit = "KiB"; }
@@ -359,7 +364,7 @@ TS_FUNCTION_RESULT list_trashed(const std::vector<trashsys_log_info> &vtli) {
 				  << std::string(a.rget_logfn()) << "   "
 				  << fu.get_number() << " " << unit << "   "
 				  << "Trashed at: " << pretty_time << "   "
-				  << a.rget_isdir() << std::endl; // temporary, will create function to return human readable 'file' or 'directory
+				  << file_or_directory << std::endl;
 	}
 	
 	return FUNCTION_SUCCESS;
@@ -374,6 +379,11 @@ TS_FUNCTION_RESULT long_list_trashed(const std::vector<trashsys_log_info> &vtli)
 		if(readable_time(a.rget_logtt(), pretty_time) == FUNCTION_FAILURE) {
 			return FUNCTION_FAILURE;
 		}
+
+		std::string file_or_directory = "File";
+		if(a.rget_isdir()) {
+			file_or_directory = "Directory";
+		}
 		
 		if(fu.is_bytes()) { unit = "B"; }
 		if(fu.is_kib()) { unit = "KiB"; }
@@ -385,7 +395,7 @@ TS_FUNCTION_RESULT long_list_trashed(const std::vector<trashsys_log_info> &vtli)
 				  << a.rget_logfsz() << " B" << "   "
 				  << "Trashed at: " << pretty_time << "   "
 				  << a.rget_logtt() << "   "
-				  << a.rget_isdir() << std::endl;
+				  << file_or_directory << std::endl;
 	}
 	
 	return FUNCTION_SUCCESS;
@@ -396,6 +406,31 @@ TS_FUNCTION_RESULT put_in_trash(const initial_path_info &ipi, const trashsys_log
 	std::string id_and_filename = std::to_string(tli.rget_logid())+":"+std::string(tli.rget_logfn());
 	std::string prepend_path = std::string(ipi.rget_trd_ws())+id_and_filename;
 	std::filesystem::rename(tli.rget_logop(), prepend_path);
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT r_argument_validation(std::string argument) {
+
+	std::stringstream ss(argument);	
+	int64_t number = 0;
+	auto iter = argument.cbegin();
+	if(iter != argument.cend()) {
+		if(*iter == '0') {		   
+			return FUNCTION_FAILURE;
+		}
+	}
+	
+	ss >> number;	
+	if(ss.eof()) {		
+		return number;
+	}
+
+	return FUNCTION_FAILURE;
+}
+
+TS_FUNCTION_RESULT restore_file(const initial_path_info &ipi, TS_FUNCTION_RESULT id) {
+
+	if(id || ipi.is_fail()) {}
 	return FUNCTION_SUCCESS;
 }
 
@@ -436,6 +471,7 @@ int main (int argc, char **argv) {
 	bool R_used = false;
 	bool h_used = false;
 	int opt = 0;
+	std::string r_arg;
 	while((opt = getopt(argc, argv, "ynftlLcCR:h")) != -1) {
 
 		switch(opt) {
@@ -485,6 +521,7 @@ int main (int argc, char **argv) {
 			
 			R_mtx = 1;
 			R_used = true;
+			r_arg = optarg;
 			
 			break;
 		case 'h':
@@ -544,6 +581,13 @@ int main (int argc, char **argv) {
 	}
 
 	if(R_used == true) {
+		auto argnumber = r_argument_validation(r_arg);
+		if(argnumber == FUNCTION_FAILURE) {
+			std::cerr << "Invalid argument. Please provide a valid ID." << std::endl;
+			return EXIT_FAILURE;
+		}
+		
+		restore_file(ipi, argnumber);
 		DEBUG_STREAM( << "-R" << std::endl);
 		return EXIT_SUCCESS;
 	}
