@@ -448,6 +448,7 @@ directory_entry find_by_id(const initial_path_info &ipi, TS_FUNCTION_RESULT id) 
 
 		std::cout << number << std::endl;
 	    if(id == number) {
+			foundfile = a;
 			return foundfile;
 		}
 	}
@@ -457,10 +458,28 @@ directory_entry find_by_id(const initial_path_info &ipi, TS_FUNCTION_RESULT id) 
 	return foundfile;
 }
 
-TS_FUNCTION_RESULT restore_file(directory_entry de) {
+TS_FUNCTION_RESULT restore_file(const directory_entry &de) {
 
-	if(de.is_dir()) {}
-	return FUNCTION_SUCCESS;
+	std::ifstream ifs(de.rget_path());
+	int id; // discard
+	std::string filename; // discard
+	std::string idfilename; // discard
+	std::uintmax_t filesize; // discard
+	time_t trashedtime; // discard
+	std::filesystem::path restorepath;
+	bool isdir; // discard
+	while(ifs >> id >> filename >> idfilename >> filesize >> trashedtime >> restorepath >> isdir) {}
+
+	if(ifs.eof()) {
+		DEBUG_STREAM( << de.rget_path() << std::endl);
+		DEBUG_STREAM( << restorepath << std::endl);
+		//std::filesystem::rename(de.rget_path(), restorepath);
+		//std::filesystem::remove(de.rget_path());
+		std::cout << "File was restored to: " << restorepath << std::endl;
+		return FUNCTION_SUCCESS;
+	}
+
+	return FUNCTION_FAILURE;
 }
 
 inline void usage_out(std::ostream &out) {
