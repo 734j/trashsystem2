@@ -221,6 +221,7 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 	
 	auto id = determine_highest_id(ipi);	
 	auto canon_path = std::filesystem::canonical(path);
+	//std::cout << canon_path << std::endl;
 	decltype(get_directory_size(path)) filesize = 0;
 	decltype(std::filesystem::is_directory(path)) isdir = false;
 	if(std::filesystem::is_regular_file(path)) {
@@ -440,6 +441,11 @@ directory_entry find_by_id(const initial_path_info &ipi, TS_FUNCTION_RESULT id) 
 
 		int64_t number = 0;
 		std::ifstream ifs(a.rget_path());
+		if(!ifs) {
+			DEBUG_STREAM( << "restore_file: File cannot be opened." << std::endl);
+			continue;
+		}
+		
 		ifs >> number;
 		if(ifs.fail()) {
 			DEBUG_STREAM( << "restore_file: Incorrect file format found in a log file. Skipping." << std::endl);
@@ -458,7 +464,7 @@ directory_entry find_by_id(const initial_path_info &ipi, TS_FUNCTION_RESULT id) 
 	return foundfile;
 }
 
-TS_FUNCTION_RESULT restore_file(const directory_entry &de) {
+TS_FUNCTION_RESULT restore_file(const directory_entry &de, const initial_path_info &ipi) {
 
 	std::ifstream ifs(de.rget_path());
 	int id; // discard
@@ -469,12 +475,13 @@ TS_FUNCTION_RESULT restore_file(const directory_entry &de) {
 	std::filesystem::path restorepath;
 	bool isdir; // discard
 	while(ifs >> id >> filename >> idfilename >> filesize >> trashedtime >> restorepath >> isdir) {}
-
+	std::string from = std::string(ipi.rget_trd_ws())+idfilename;
+	std::cout << from << std::endl;
 	if(ifs.eof()) {
 		DEBUG_STREAM( << de.rget_path() << std::endl);
 		DEBUG_STREAM( << restorepath << std::endl);
-		//std::filesystem::rename(de.rget_path(), restorepath);
-		//std::filesystem::remove(de.rget_path());
+		std::filesystem::rename(from, restorepath);
+		std::filesystem::remove(de.rget_path());
 		std::cout << "File was restored to: " << restorepath << std::endl;
 		return FUNCTION_SUCCESS;
 	}
@@ -641,7 +648,7 @@ int main (int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 
-		if(restore_file(de) == FUNCTION_FAILURE) {
+		if(restore_file(de, ipi) == FUNCTION_FAILURE) {
 			std::cerr << g_argv << ": Error: " << std::endl;
 			return EXIT_FAILURE;
 		}
@@ -685,8 +692,19 @@ int main (int argc, char **argv) {
 	}
 
 	int index = 0;
-	for (index = optind ; index < argc ; index++) { // loop that gathers info about files
-		std::filesystem::path file_to_trash = argv[index];
+	for (index = optind ; index < argc ; index++) {
+		std::filesystem::path precheck = argv[index];		
+		std::string check = argv[index];
+		if(std::filesystem::is_directory(precheck)) {
+			if(check.cbegin() != check.cend()) {
+				auto checkrbeg = check.rbegin();
+				if(*checkrbeg == '/') {
+					check.pop_back();
+				}
+			}
+		}
+		
+		std::filesystem::path file_to_trash = check;
 		trashsys_log_info tli;
 		if(get_file_info(file_to_trash, tli, ipi) == FUNCTION_FAILURE) {
 			continue;
