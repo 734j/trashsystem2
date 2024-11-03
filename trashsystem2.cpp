@@ -489,6 +489,17 @@ TS_FUNCTION_RESULT restore_file(const directory_entry &de, const initial_path_in
 	return FUNCTION_FAILURE;
 }
 
+TS_FUNCTION_RESULT clear_old_files(initial_path_info &ipi) {
+
+	
+	return FUNCTION_SUCCESS;
+}
+
+TS_FUNCTION_RESULT clear_all_trashed(initial_path_info &ipi) {
+
+	return FUNCTION_SUCCESS;
+}
+
 inline void usage_out(std::ostream &out) {
 	
 	out << USAGE << std::ends;
@@ -635,7 +646,12 @@ int main (int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	if(R_used == true) {
+	if(R_used == true) {		
+		if(argc > 3) {
+			usage_out(std::cerr);
+			return EXIT_FAILURE;
+		}
+		
 		auto argnumber = r_argument_validation(r_arg);
 		if(argnumber == FUNCTION_FAILURE) {
 			std::cerr << g_argv << ": Error: Invalid argument. Please provide a valid ID." << std::endl;
