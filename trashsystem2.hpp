@@ -80,13 +80,14 @@ class trashsys_log_info {
 public:
 	trashsys_log_info() = default;
 	trashsys_log_info(int64_t log_id, size_t log_filesize, time_t log_trashtime,
-					  std::filesystem::path log_filename, std::filesystem::path log_originalpath, bool is_dir):
+					  std::filesystem::path log_filename, std::filesystem::path log_originalpath, bool is_dir, std::filesystem::path fnid):
 		ts_log_id(log_id), ts_log_filesize(log_filesize), ts_log_trashtime(log_trashtime),
-		ts_log_filename(log_filename), ts_log_originalpath(log_originalpath), ts_is_dir(is_dir) { }
+		ts_log_filename(log_filename), ts_log_originalpath(log_originalpath), ts_is_dir(is_dir), ts_log_filename_and_id(fnid) { }
 	const int64_t &rget_logid() const { return ts_log_id; }
 	const std::uintmax_t &rget_logfsz() const { return ts_log_filesize; }
 	const time_t &rget_logtt() const { return ts_log_trashtime; }
 	const std::filesystem::path &rget_logfn() const { return ts_log_filename; }
+	const std::filesystem::path &rget_logfnid() const { return ts_log_filename_and_id; }
 	const std::filesystem::path &rget_logop() const { return ts_log_originalpath; }
 	const bool &rget_isdir() const { return ts_is_dir; }
 private:
@@ -96,6 +97,7 @@ private:
 	std::filesystem::path ts_log_filename;
 	std::filesystem::path ts_log_originalpath;	
 	bool ts_is_dir;
+	std::filesystem::path ts_log_filename_and_id;
 };
 
 class initial_path_info { // Initial useful strings to create before we do anything. Super useful when programming.

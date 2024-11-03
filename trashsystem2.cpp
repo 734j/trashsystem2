@@ -88,11 +88,11 @@ TS_FUNCTION_RESULT compare_unixtime (const time_t deleted_time, int const differ
 
 	final = current_time - deleted_time; 
 	if(final < diff_converted) {
-		DEBUG_STREAM(<< "final is not older than diff_converted\n" << std::endl);
+		DEBUG_STREAM(<< "final is not older than diff_converted" << std::endl);
 		return FUNCTION_FAILURE;
 	}
 	
-	DEBUG_STREAM(<< "final is older than diff_converted\n" << std::endl);
+	DEBUG_STREAM(<< "final is older than diff_converted" << std::endl);
 	return FUNCTION_SUCCESS;
 }
 
@@ -233,7 +233,8 @@ TS_FUNCTION_RESULT get_file_info(const std::filesystem::path &path,
 	
 	auto trashtime = std::time(nullptr); // maybe check if time fails?
 	auto file_name = path.filename();
-	trashsys_log_info _tli(id+1,filesize,trashtime,file_name,canon_path,isdir);
+	auto file_name_and_id = std::to_string(id)+":"+std::string(file_name);
+	trashsys_log_info _tli(id+1,filesize,trashtime,file_name,canon_path,isdir, file_name_and_id);
 	tli = _tli;
 	return FUNCTION_SUCCESS;
 }
@@ -289,9 +290,9 @@ TS_FUNCTION_RESULT get_file_info_from_log(const initial_path_info &ipi,
 		std::string line;
 		while(std::getline(file_ifs, line)) {
 			std::istringstream to_tli(line);
-			if(to_tli >> id >> log_filename >> log_id_and_filename/* <--- Not used!!! */ >>
+			if(to_tli >> id >> log_filename >> log_id_and_filename >>
 			   filesize >> trashtime >> log_originalpath >> is_dir) {
-				trashsys_log_info tli(id, filesize, trashtime, log_filename, log_originalpath, is_dir);
+				trashsys_log_info tli(id, filesize, trashtime, log_filename, log_originalpath, is_dir, log_id_and_filename);
 				vtli.push_back(tli);
 				DEBUG_STREAM( << "get_file_info_from_log: push_back successful: '" << std::string(a.rget_path()) << "' date pushed back to vtli.\n");
 			} else {
@@ -489,14 +490,37 @@ TS_FUNCTION_RESULT restore_file(const directory_entry &de, const initial_path_in
 	return FUNCTION_FAILURE;
 }
 
-TS_FUNCTION_RESULT clear_old_files(initial_path_info &ipi) {
+TS_FUNCTION_RESULT clear_old_trashed(const initial_path_info &ipi, const int days) {
 
+	std::vector<trashsys_log_info> vtli;
+	if(get_file_info_from_log(ipi, vtli) == FUNCTION_FAILURE) {
+		return FUNCTION_FAILURE;
+	}
+
+	for(auto &a : vtli) {
+		if(compare_unixtime(a.rget_logtt(), days) == FUNCTION_FAILURE) {
+			continue;
+		}
+		std::filesystem::path makepath = std::string(ipi.rget_trd_ws())+std::string(a.rget_logfnid());
+		std::filesystem::path makepathlog = std::string(ipi.rget_log_ws())+std::string(a.rget_logfnid())+".log";
+		std::cout << makepath << "\n" << makepathlog << std::endl;
+		std::filesystem::remove_all(makepath);
+		std::filesystem::remove_all(makepathlog);
+	}
 	
 	return FUNCTION_SUCCESS;
 }
 
-TS_FUNCTION_RESULT clear_all_trashed(initial_path_info &ipi) {
+TS_FUNCTION_RESULT clear_all_trashed(const initial_path_info &ipi) {
 
+	auto count_trd = std::filesystem::remove_all(ipi.rget_trd());
+	auto count_log = std::filesystem::remove_all(ipi.rget_log());
+	if(count_trd != count_log) {
+		std::cerr << g_argv << ": Error: \n"
+				  << count_trd << " trashed files were removed\n"
+				  << count_log << "log files were removed" << std::endl;
+	}
+	
 	return FUNCTION_SUCCESS;
 }
 
@@ -675,12 +699,18 @@ int main (int argc, char **argv) {
 
 	if(c_used == true) {
 		DEBUG_STREAM( << "-c" << std::endl);
+		clear_old_trashed(ipi, 30);
 		return EXIT_SUCCESS;
 	}
 
 	if(C_used == true) {
 		DEBUG_STREAM( << "-C" << std::endl);
-		choice(choice_mode);
+		auto yn = choice(choice_mode);
+		if(yn == 1) {
+			return EXIT_SUCCESS;
+		}
+
+		clear_all_trashed(ipi);
 		return EXIT_SUCCESS;
 	}
 

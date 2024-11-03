@@ -3,7 +3,7 @@
 LOG_DIR="/home/oskar/.trashsys/log"
 
 if [ -z "$1" ]; then
-  echo "Usage: $0 <replacement_string>"
+  echo "Usage: $0 <replacement_timestamp>"
   exit 1
 fi
 
@@ -16,8 +16,12 @@ fi
 
 for file in "$LOG_DIR"/*; do
   if [ -f "$file" ]; then
-    echo "replacing trashed time in: $file"
-    awk -v replacement="$REPLACEMENT" 'NR % 5 == 0 {print replacement} NR % 5 != 0 {print $0}' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    echo "Replacing timestamp in: $file"
+    awk -v replacement="$REPLACEMENT" '{
+      # Replace the fifth field (timestamp) with the replacement string
+      $5 = replacement
+      print $0
+    }' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
   fi
 done
 
